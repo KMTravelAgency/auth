@@ -50,8 +50,22 @@ def login(request: Request, db: Session = Depends(get_db)):
     
 
 @app.post("/validate")
-def validate():
-    pass
+def validate(request: Request, ):
+    encoded_JWT = request.headers['Authorization']
+
+    if not encoded_JWT:
+        return "missing credentials", 401
+    
+    encoded_JWT = encoded_JWT.split(" ")[1]
+    print(encoded_JWT)
+    try:
+        decoded = jwt.decode(
+            encoded_JWT, os.environ.get("SECRET_KEY"), algorithms=os.getenv("ALGORITHM") 
+        )
+    except:
+        return "not authorized", 403
+    
+    return decoded, 200
 
 def createJWT(username, secret, authz):
     return jwt.encode(
@@ -63,5 +77,5 @@ def createJWT(username, secret, authz):
             "admin": authz,
         },
         secret,
-        os.getenv("ALGORITHM"),
+        algorithm=os.getenv("ALGORITHM"),
     )

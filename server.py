@@ -1,12 +1,16 @@
 from fastapi import Depends, FastAPI, HTTPException, Request
 from sqlalchemy.orm import Session
-import base64
+from jose import JWTError, jwt
+from dotenv import load_dotenv
+import base64, datetime, os
 import binascii
 
 from sql_app import crud, models, schemas
 from sql_app.database import SessionLocal, engine
 
 models.Base.metadata.create_all(bind=engine)
+
+load_dotenv()
 
 app = FastAPI()
 
@@ -36,15 +40,28 @@ def login(request: Request, db: Session = Depends(get_db)):
     # DB check for username and password
     result = crud.get_user_by_email(db, username)
 
-    print(result.email)
-    
-    if username != result.email or password != result.password:
-        return "invalid credentails", 401
-    else:
-        return result, "You have been verified"
+    if result is not None:    
+        if username != result.email or password != result.password:
+            return "invalid credentials", 401
+        else:
+            return createJWT(username, os.environ.get("SECRET_KEY"), True)
+    return "invalid credentials", 401
 
     
 
 @app.post("/validate")
 def validate():
     pass
+
+def createJWT(username, secret, authz):
+    return jwt.encode(
+        {
+            "username": username,
+            "exp": datetime.datetime.now(tz=datetime.timezone.utc)
+            + datetime.timedelta(days=1),
+            "iat": datetime.datetime.utcnow(),
+            "admin": authz,
+        },
+        secret,
+        os.getenv("ALGORITHM"),
+    )
